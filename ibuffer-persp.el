@@ -79,7 +79,25 @@
 (defcustom ibuffer-persp-hook nil
   "Hook run when `ibuffer-persp' is called."
   :type 'hook
-  :group 'ibuffer)
+  :group 'ibuffer-persp)
+
+
+(defcustom ibuffer-persp-current-name-face 'bold
+  "Face used for displaying current perspective names."
+  :type 'face
+  :group 'ibuffer-persp)
+
+
+(defcustom ibuffer-persp-nil-name-face 'italic
+  "Face used for displaying nil perspective names."
+  :type 'face
+  :group 'ibuffer-persp)
+
+
+(defcustom ibuffer-persp-other-name-face nil
+  "Face used for displaying perspective names."
+  :type 'face
+  :group 'ibuffer-persp)
 
 
 (defvar-local ibuffer-persp-name nil
@@ -193,38 +211,45 @@
     map))
 
 
+(defun ibuffer-persp-column-text (text current-persp buffer-persps)
+  "Text with properties for a column entry with CURRENT-PERSP and BUFFER-PERSPS."
+  (ibuffer-assert-ibuffer-mode)
+  (let* ((buffer-current-persp (memq current-persp buffer-persps))
+         (buffer-current-prop (cond (buffer-current-persp ibuffer-persp-current-name-face)
+                                    ((not buffer-persps) ibuffer-persp-nil-name-face)
+                                    (t ibuffer-persp-other-name-face))))
+    (propertize
+     text
+     'font-lock-face buffer-current-prop
+     'mouse-face 'highlight
+     'help-echo (if buffer-persps (mapconcat 'persp-name buffer-persps "\n") persp-nil-name)
+     )))
+
+
 ;; IBuffer does not provide 'ibuffer-buf', so create the
 ;; ibuffer-column directly so we have access to the ibuffer's persp.
 (defun ibuffer-make-column-persp (buffer mark)
   "Manually written ibuffer-persp column method, taking BUFFER and MARK options."
   (ibuffer-assert-ibuffer-mode)
   (let* ((current-persp (ibuffer-persp-current-persp))
-         (buffer-persps (persp-other-persps-with-buffer-except-nil buffer nil))
-         (buffer-current-persp (memq current-persp buffer-persps)))
-    (propertize
+         (buffer-persps (persp-other-persps-with-buffer-except-nil buffer nil)))
+    (ibuffer-persp-column-text
      (if buffer-persps
          (mapconcat 'persp-name buffer-persps ",")
        "")
-     'font-lock-face
-     (if buffer-current-persp
-         ibuffer-filter-group-name-face
-       nil))))
+     current-persp buffer-persps)))
 
 
-(defun ibuffer-make-column-persp-none (buffer mark)
+(defun ibuffer-make-column-persp-all (buffer mark)
   "Manually written ibuffer-persp column method, taking BUFFER and MARK options."
   (ibuffer-assert-ibuffer-mode)
   (let* ((current-persp (ibuffer-persp-current-persp))
-         (buffer-persps (persp-other-persps-with-buffer-except-nil buffer nil))
-         (buffer-current-persp (memq current-persp buffer-persps)))
-    (propertize
+         (buffer-persps (persp-other-persps-with-buffer-except-nil buffer nil)))
+    (ibuffer-persp-column-text
      (if buffer-persps
          (mapconcat 'persp-name buffer-persps ",")
        persp-nil-name)
-     'font-lock-face
-     (if buffer-current-persp
-         ibuffer-filter-group-name-face
-       nil))))
+     current-persp buffer-persps)))
 
 
 (defun ibuffer-make-column-persp-other (buffer mark)
@@ -232,9 +257,8 @@
   (ibuffer-assert-ibuffer-mode)
   (let* ((current-persp (ibuffer-persp-current-persp))
          (buffer-persps (persp-other-persps-with-buffer-except-nil buffer nil))
-         (buffer-other-persps (remq current-persp buffer-persps))
-         (buffer-current-persp (memq current-persp buffer-persps)))
-    (propertize
+         (buffer-other-persps (remq current-persp buffer-persps)))
+    (ibuffer-persp-column-text
      (cond ((not buffer-persps)
             (if current-persp
                 persp-nil-name
@@ -243,10 +267,7 @@
             "")
            (t
             (mapconcat 'persp-name buffer-other-persps ",")))
-     'font-lock-face
-     (if buffer-current-persp
-         ibuffer-filter-group-name-face
-       nil))))
+     current-persp buffer-persps)))
 
 
 (defun ibuffer-make-column-persp-status-mini (buffer mark)
@@ -261,7 +282,7 @@
 
 
 (put 'ibuffer-make-column-persp 'ibuffer-column-name "Perspective")
-(put 'ibuffer-make-column-persp-none 'ibuffer-column-name "Perspective-n")
+(put 'ibuffer-make-column-persp-all 'ibuffer-column-name "Perspective-a")
 (put 'ibuffer-make-column-persp-other 'ibuffer-column-name "Perspective-o")
 (put 'ibuffer-make-column-persp-status-mini 'ibuffer-column-name "P")
 
